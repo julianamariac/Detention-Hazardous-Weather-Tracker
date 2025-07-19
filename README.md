@@ -81,6 +81,12 @@ We welcome volunteers, especially those with experience in:
 ---
 
 ## Repo Structure
+-TBD
+---
+
+## License
+
+This project is licensed under the [MIT License](./LICENSE).
 
 ```plaintext
 /scripts              # Python scripts for data collection
