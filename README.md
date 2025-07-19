@@ -4,7 +4,7 @@
 
 ## Mission Statement
 
-This project exists to address a life-threatening gap in public awareness: people are being detained in facilities across the U.S.—including Florida—without access to air conditioning, proper shelter, or medical attention during extreme weather events. Many of these individuals are immigrants, refugees, or undocumented persons, and they often have no ability to communicate their conditions to the outside world.
+This project exists to address a life-threatening gap in public awareness: people are being detained in facilities across the U.S. without access to air conditioning, proper sanitation, or safety planning during extreme weather events. Many of these individuals have no have no ability to communicate the safety concerns outside of the facilities.
 
 By publicly tracking dangerous weather events near these locations and making that data open, verifiable, and transparent, we hope to:
 - Increase public awareness of detention conditions during climate emergencies
