@@ -16,14 +16,33 @@ record = {
     "timestamp": props.get('timestamp'),
     "temperature_C": props.get('temperature', {}).get('value'),
     "relative_humidity": props.get('relativeHumidity', {}).get('value'),
-    "precip_last_24hour_mm": props.get('precipitationLast24Hours', {}).get('value'),
     "wind_speed_kph": props.get('windSpeed', {}).get('value'),
     "text_description": props.get('textDescription')
 }
 
-# Step 4: Save as audit log (append to file or send to Google Sheet)
+# Step 4: Get weather alerts for your location
+try:
+    alerts_url = "https://api.weather.gov/alerts/active?point=25.76,-80.19"
+    alerts_resp = requests.get(alerts_url)
+    alerts_data = alerts_resp.json()
+    alerts = [alert.get("properties", {}).get("headline", "No details") for alert in    alerts_data.get("features", [])]
+except:
+     alerts = ["Error fetching alerts"]
+# Add alerts to the record
+record["alerts"] = alerts
+record["alert_count"] = len(alerts)
+
+# Step 5: Save as audit log (append to file or send to Google Sheet)
 with open("weather_audit_log.json", "a") as f:
     json.dump(record, f)
     f.write("\n")
 
 print("Logged weather:", record)
+
+# Optional: Print alerts separately for visibility
+if alerts:
+    print(f"\n  {len(alerts)} Active Alert(s):")
+    for i, alert in enumerate(alerts, 1):
+        print(f"  {i}. {alert}")
+else:
+    print("\n No active weather alerts")
