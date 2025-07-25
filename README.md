@@ -1,6 +1,6 @@
 # Detention Center Weather Tracking System - Setup Guide
 
-This guide helps you set up an automated weather tracking system for detention centers. The system collects weather data and alerts from the National Weather Service and saves them to Google Drive for monitoring conditions at detention facilities.
+This guide helps you set up an automated weather tracking system for detention centers. The system collects weather data and alerts from the National Weather Service and saves them to Google Drive for monitoring conditions at detention facilities.  Why am I using a google drive to store my data: because 1) it is free 2) it is time stamped 3) you can set permissions for who can access the data 4)version history allows you to keep a record of the data you use in your analysis 5) 
 
 ## Important Usage Guidelines
 
@@ -22,7 +22,7 @@ This guide helps you set up an automated weather tracking system for detention c
 
 1. Go to [Google Drive](https://drive.google.com) and sign in
 2. Click "New" → "Folder"
-3. Name it "Detention Weather Data"
+3. Name it "Whatever You Choose to Name it"
 4. Open the folder and copy the folder ID from the URL:
    - The URL will look like: `https://drive.google.com/drive/folders/1ABC123XYZ456`
    - The folder ID is the part after `/folders/`: `1ABC123XYZ456`
@@ -55,18 +55,18 @@ This guide helps you set up an automated weather tracking system for detention c
    - Click "Save and Continue" through all steps
 4. Back in Credentials, click "Create Credentials" → "OAuth client ID"
 5. Choose "Desktop application"
-6. Name it "Weather Tracker Client"
+6. Name it "Whatever you want to name project"
 7. Click "Create"
 8. Download the JSON file - rename it to `credentials.json`
 
 ### Cost Breakdown (It's Free!)
 
 - Google Drive: 15GB free storage (our data uses ~1MB per month)
-- Google Cloud: Free tier includes 100 API calls per day (we make ~25 per day)
+- Google Cloud: Free tier includes 100 API calls per day (we make 24 per day because this script automatically uploads the national weather data to a time stamped and versioned cloud)
 - **Total monthly cost: $0.00**
 
 The system will stay free as long as you:
-- Don't exceed 15GB in Google Drive (our data is tiny)
+- Don't exceed 15GB in Google Drive (our data is tiny and the .json files are condensed to 1 line)
 - Don't make more than 100 API calls per day (follow the 1-hour rule)
 
 ## Part 2: Installing Python and Dependencies
@@ -413,6 +413,8 @@ If you encounter issues:
 2. Verify your Google Drive folder ID is correct
 3. Make sure you're following the 1-hour minimum interval
 4. Check that your internet connection is stable
+
+Sometimes weather stations go down, that is okay.  
 
 This system helps monitor weather conditions at detention facilities to ensure transparency and accountability in detention conditions.
 
