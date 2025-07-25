@@ -1,10 +1,10 @@
 # Detention Center Weather Tracking System - Setup Guide
 
-This guide helps you set up an automated weather tracking system for detention centers. The system collects weather data and alerts from the National Weather Service and saves them to Google Drive for monitoring conditions at detention facilities.  Why am I using a google drive to store my data: because 1) it is free 2) it is time stamped 3) you can set permissions for who can access the data 4)version history allows you to keep a record of the data you use in your analysis 5) 
+This guide helps you set up an automated weather tracking system for detention centers. The system collects weather data and alerts from the National Weather Service and saves them to Google Drive for monitoring conditions at detention facilities.
 
 ## Important Usage Guidelines
 
- **PLEASE READ**: This system uses the National Weather Service's free public API. To be respectful of this public service:
+⚠️ **PLEASE READ**: This system uses the National Weather Service's free public API. To be respectful of this public service:
 - **Only run data collection ONCE PER HOUR maximum**
 - The system includes built-in delays between API calls
 - Do not modify the delay timings in the code
@@ -22,7 +22,7 @@ This guide helps you set up an automated weather tracking system for detention c
 
 1. Go to [Google Drive](https://drive.google.com) and sign in
 2. Click "New" → "Folder"
-3. Name it "Whatever You Choose to Name it"
+3. Name it "Detention Weather Data"
 4. Open the folder and copy the folder ID from the URL:
    - The URL will look like: `https://drive.google.com/drive/folders/1ABC123XYZ456`
    - The folder ID is the part after `/folders/`: `1ABC123XYZ456`
@@ -55,18 +55,18 @@ This guide helps you set up an automated weather tracking system for detention c
    - Click "Save and Continue" through all steps
 4. Back in Credentials, click "Create Credentials" → "OAuth client ID"
 5. Choose "Desktop application"
-6. Name it "Whatever you want to name project"
+6. Name it "Weather Tracker Client"
 7. Click "Create"
 8. Download the JSON file - rename it to `credentials.json`
 
 ### Cost Breakdown (It's Free!)
 
 - Google Drive: 15GB free storage (our data uses ~1MB per month)
-- Google Cloud: Free tier includes 100 API calls per day (we make 24 per day because this script automatically uploads the national weather data to a time stamped and versioned cloud)
+- Google Cloud: Free tier includes 100 API calls per day (we make ~25 per day)
 - **Total monthly cost: $0.00**
 
 The system will stay free as long as you:
-- Don't exceed 15GB in Google Drive (our data is tiny and the .json files are condensed to 1 line)
+- Don't exceed 15GB in Google Drive (our data is tiny)
 - Don't make more than 100 API calls per day (follow the 1-hour rule)
 
 ## Part 2: Installing Python and Dependencies
@@ -300,7 +300,7 @@ Here's how the entire system works:
 3. **One-time setup**: Create `configuration.py` with station assignments
 4. **Regular use**: Run `weather_tracker_gdrive.py` to collect data (max once per hour)
 
-### Manual Collection (Recommended)
+### Manual Collection
 
 Run the weather collection manually when you want data:
 
@@ -310,11 +310,187 @@ cd path\to\your\weather-tracker
 python weather_tracker_gdrive.py
 ```
 
-**Mac:**
+**Mac/Linux:**
 ```
 cd /path/to/your/weather-tracker
 python3 weather_tracker_gdrive.py
 ```
+
+### Automated Scheduling (Optional)
+
+For continuous monitoring, you can schedule the script to run automatically. **Remember: Never schedule more frequently than once per hour.**
+
+#### Windows - Task Scheduler
+
+1. **Open Task Scheduler:**
+   - Press `Windows + R`, type `taskschd.msc`, press Enter
+
+2. **Create Basic Task:**
+   - Click "Create Basic Task" in the right panel
+   - Name: "Weather Tracker"
+   - Description: "Detention center weather monitoring"
+   - Click "Next"
+
+3. **Set Trigger:**
+   - Choose "Daily"
+   - Set start time (e.g., 8:00 AM)
+   - Recur every: 1 days
+   - Click "Next"
+
+4. **Set Action:**
+   - Choose "Start a program"
+   - Program/script: `python`
+   - Add arguments: `weather_tracker_gdrive.py`
+   - Start in: `C:\path\to\your\weather-tracker` (your actual folder path)
+   - Click "Next"
+
+5. **Advanced Settings:**
+   - Check "Open the Properties dialog"
+   - Click "Finish"
+
+6. **In Properties Dialog:**
+   - Go to "Triggers" tab → Edit → "Advanced settings"
+   - Check "Repeat task every:" 
+   - Set to "1 hour"
+   - Set duration to "Indefinitely"
+   - Click "OK"
+
+#### Mac - Cron (Terminal Method)
+
+1. **Open Terminal**
+
+2. **Edit crontab:**
+   ```bash
+   crontab -e
+   ```
+
+3. **Add this line** (replace `/path/to/your/weather-tracker` with actual path):
+   ```bash
+   0 * * * * cd /path/to/your/weather-tracker && /usr/bin/python3 weather_tracker_gdrive.py >> /path/to/your/weather-tracker/cron.log 2>&1
+   ```
+
+4. **Save and exit** (in nano: Ctrl+X, then Y, then Enter)
+
+#### Mac - Automator (GUI Method)
+
+1. **Open Automator** (Applications → Automator)
+
+2. **Create New Document:**
+   - Choose "Calendar Alarm"
+
+3. **Add Actions:**
+   - Search for "Run Shell Script"
+   - Drag it to the workflow area
+   - Change "Pass input" to "as arguments"
+   - Enter this script:
+   ```bash
+   cd /path/to/your/weather-tracker
+   /usr/bin/python3 weather_tracker_gdrive.py
+   ```
+
+4. **Save the workflow**
+
+5. **Set up Calendar Event:**
+   - Open Calendar app
+   - Create new event: "Weather Collection"
+   - Set to repeat every hour
+   - Add the Automator workflow as an alarm
+
+#### Linux - Cron
+
+1. **Open terminal**
+
+2. **Edit crontab:**
+   ```bash
+   crontab -e
+   ```
+
+3. **Add hourly collection** (replace path):
+   ```bash
+   0 * * * * cd /path/to/your/weather-tracker && /usr/bin/python3 weather_tracker_gdrive.py >> /path/to/your/weather-tracker/cron.log 2>&1
+   ```
+
+4. **For specific times only** (e.g., every 3 hours from 6 AM to 9 PM):
+   ```bash
+   0 6,9,12,15,18,21 * * * cd /path/to/your/weather-tracker && /usr/bin/python3 weather_tracker_gdrive.py >> /path/to/your/weather-tracker/cron.log 2>&1
+   ```
+
+5. **Save and exit**
+
+#### Ubuntu/Debian - Systemd Timer (Advanced)
+
+For more reliable service management:
+
+1. **Create service file:**
+   ```bash
+   sudo nano /etc/systemd/system/weather-tracker.service
+   ```
+
+2. **Add content** (replace username and path):
+   ```ini
+   [Unit]
+   Description=Detention Center Weather Tracker
+   After=network.target
+
+   [Service]
+   Type=oneshot
+   User=your-username
+   WorkingDirectory=/path/to/your/weather-tracker
+   ExecStart=/usr/bin/python3 weather_tracker_gdrive.py
+   ```
+
+3. **Create timer file:**
+   ```bash
+   sudo nano /etc/systemd/system/weather-tracker.timer
+   ```
+
+4. **Add timer content:**
+   ```ini
+   [Unit]
+   Description=Run weather tracker every hour
+   Requires=weather-tracker.service
+
+   [Timer]
+   OnCalendar=hourly
+   Persistent=true
+
+   [Install]
+   WantedBy=timers.target
+   ```
+
+5. **Enable and start:**
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable weather-tracker.timer
+   sudo systemctl start weather-tracker.timer
+   ```
+
+### Scheduling Best Practices
+
+**Recommended Schedule Options:**
+
+1. **Hourly Collection** (24 times per day):
+   - Good for: Active monitoring during emergencies
+   - Impact: Higher API usage but still within free limits
+
+2. **Every 3 Hours** (8 times per day):
+   - Good for: Regular monitoring with lower API usage
+   - Times: 6 AM, 9 AM, 12 PM, 3 PM, 6 PM, 9 PM
+
+3. **Twice Daily** (2 times per day):
+   - Good for: Basic monitoring with minimal API usage
+   - Times: 8 AM and 8 PM
+
+4. **Business Hours Only**:
+   - Good for: Office-based monitoring
+   - Times: Every 2 hours from 8 AM to 6 PM
+
+**Important Scheduling Notes:**
+- Never schedule more than once per hour
+- Consider time zones if monitoring multiple regions
+- Monitor your Google Drive storage (though usage is minimal)
+- Check logs regularly to ensure the system is working
+- The system respects API rate limits with built-in delays
 
 ### Important Usage Rules
 
@@ -413,8 +589,6 @@ If you encounter issues:
 2. Verify your Google Drive folder ID is correct
 3. Make sure you're following the 1-hour minimum interval
 4. Check that your internet connection is stable
-
-Sometimes weather stations go down, that is okay.  
 
 This system helps monitor weather conditions at detention facilities to ensure transparency and accountability in detention conditions.
 
