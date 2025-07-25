@@ -4,7 +4,7 @@ This guide helps you set up an automated weather tracking system for detention c
 
 ## Important Usage Guidelines
 
-⚠️ **PLEASE READ**: This system uses the National Weather Service's free public API. To be respectful of this public service:
+**PLEASE READ**: This system uses the National Weather Service's free public API. To be respectful of this public service:
 - **Only run data collection ONCE PER HOUR maximum**
 - The system includes built-in delays between API calls
 - Do not modify the delay timings in the code
