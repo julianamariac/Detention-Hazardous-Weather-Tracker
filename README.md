@@ -531,7 +531,7 @@ weather-tracker/
 - Glades Detention Center
 - Krome Detention Center
 - Camp Blanding Detention Center
-- FTC Miami Detention Center
+- FTC Miami (Alligator) Detention Center
 
 **Weather Data Collected:**
 - Temperature (Celsius and Fahrenheit)
