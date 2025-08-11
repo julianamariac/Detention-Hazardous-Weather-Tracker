@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# consolidated_weather_collector.py
-# Collects weather data for ALL locations and saves in ONE consolidated file
+#For hourly weather tracking
 
 import requests
 import datetime
