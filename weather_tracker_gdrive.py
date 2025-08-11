@@ -21,7 +21,7 @@ from configuration import get_station_config, get_working_station, get_alerts_ur
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 CREDENTIALS_FILE = 'credentials.json'
 TOKEN_FILE = 'token.json'
-DRIVE_FOLDER_ID = 'Find the characters for the google drive you woluld like to save data into https://drive.google.com/drive/folders/THESE CHARACTERS'
+DRIVE_FOLDER_ID = 'Find this in the browser of the folder'
 
 def authenticate_google_drive():
     """Authenticate and return Google Drive service object"""
@@ -60,11 +60,11 @@ def upload_to_google_drive(service, file_path, folder_id):
             fields='id'
         ).execute()
         
-        print(f" Consolidated report uploaded: {filename}")
+        print(f" ✅ Consolidated report uploaded: {filename}")
         return file.get('id')
         
     except Exception as e:
-        print(f" Error uploading to Google Drive: {e}")
+        print(f" ❌ Error uploading to Google Drive: {e}")
         return None
 
 def collect_weather_data(location_code):
@@ -207,12 +207,11 @@ def create_consolidated_report(all_records):
     return report
 
 def save_consolidated_report(report):
-    """Save consolidated report locally and to Google Drive"""
-    # Create directories
+    """Save consolidated report locally and to Google Drive with smart error handling"""
+    # Always save locally first (this always works)
     raw_dir = "../raw_weather_json"
     os.makedirs(raw_dir, exist_ok=True)
     
-    # Create filename with timestamp
     timestamp = report['report_metadata']['collection_timestamp'].replace(':', '-').replace('.', '-')
     filename = f"consolidated_weather_report_{timestamp}.json"
     local_path = os.path.join(raw_dir, filename)
@@ -227,13 +226,57 @@ def save_consolidated_report(report):
         json.dump(report, f, separators=(',', ':'))
         f.write("\n")
     
-    # Upload to Google Drive
+    # Now try Google Drive upload with smart error handling
     try:
+        print(" Attempting Google Drive upload...")
         drive_service = authenticate_google_drive()
         upload_to_google_drive(drive_service, local_path, DRIVE_FOLDER_ID)
+        print(" Successfully uploaded to Google Drive")
+        
+        # Check if we just restored auth (remove flag and notify)
+        auth_flag = "google_auth_needed.flag"
+        if os.path.exists(auth_flag):
+            os.remove(auth_flag)
+            # Send "restored" notification
+            try:
+                from simple_email_notification import notify_auth_restored
+                notify_auth_restored()
+                print(" Google Drive authentication restored")
+            except ImportError:
+                print(" Google Drive authentication restored (no notification system)")
+        
     except Exception as e:
-        print(f" Google Drive upload failed: {e}")
-        print(" Data saved locally as backup")
+        error_msg = str(e).lower()
+        
+        # Check if this is an authentication error
+        auth_error_keywords = ['invalid_grant', 'expired', 'revoked', 'unauthorized', 'authentication', 'token']
+        is_auth_error = any(keyword in error_msg for keyword in auth_error_keywords)
+        
+        if is_auth_error:
+            print(" Google Drive authentication expired")
+            print(" Data saved locally - notification sent")
+            
+            # Create flag file and send notification (only if new)
+            auth_flag = "google_auth_needed.flag"
+            if not os.path.exists(auth_flag):
+                with open(auth_flag, 'w') as f:
+                    f.write(f"Authentication needed since: {datetime.datetime.now().isoformat()}\n")
+                    f.write(f"Run script manually to re-authenticate with Google Drive\n")
+                
+                # Send notification about auth failure
+                try:
+                    from simple_email_notification import notify_auth_failure
+                    notify_auth_failure()
+                    print(" Email notification sent")
+                except ImportError:
+                    print(" Auth failure flagged (no notification system)")
+            else:
+                print(" Auth failure already flagged (no duplicate notification)")
+                
+        else:
+            # Non-auth error (network, API limits, etc.)
+            print(f"Google Drive upload failed (non-auth error): {e}")
+            print(" Data saved locally - will retry next hour")
     
     return local_path
 
@@ -261,14 +304,22 @@ def print_collection_summary(report):
     # Show locations with alerts
     locations_with_alerts = [r for r in report['location_data'] if r.get('alert_count', 0) > 0]
     if locations_with_alerts:
-        print(f"\n LOCATIONS WITH ACTIVE ALERTS:")
+        print(f"\n  LOCATIONS WITH ACTIVE ALERTS:")
         for location in locations_with_alerts:
             print(f"   • {location['location_name']}: {location['alert_count']} alert(s)")
 
 def main():
-    """Main function - collect data for all locations and create consolidated report"""
-    print(f" Starting consolidated weather collection...")
-    print(f" Using polite delays between API calls...")
+    """Main function with auth status checking"""
+    # Check if we need manual authentication
+    auth_flag = "google_auth_needed.flag"
+    if os.path.exists(auth_flag):
+        print("\n NOTICE: Google Drive authentication needed")
+        print(" Run this script manually to restore Google Drive uploads")
+        print("   (This will open a browser for re-authentication)")
+        print()
+    
+    print(f"  Starting consolidated weather collection...")
+    print(f"⏱  Using polite delays between API calls...")
     
     locations = get_all_locations()
     all_records = []
@@ -283,9 +334,11 @@ def main():
             
             # Status indicator
             if record.get('status') == 'SUCCESS':
+                status_icon = "✅"
             elif 'UNAVAILABLE' in record.get('status', ''):
+                status_icon = "🚫"
             else:
-                status_icon = "Cannot access record"
+                status_icon = "❌"
             
             print(f"{status_icon} {record.get('location_name', location_code)}")
             
@@ -299,7 +352,7 @@ def main():
             })
     
     # Create and save consolidated report
-    print(f"\nCreating consolidated report...")
+    print(f"\n Creating consolidated report...")
     report = create_consolidated_report(all_records)
     saved_path = save_consolidated_report(report)
     
@@ -308,7 +361,7 @@ def main():
     
     elapsed_time = time.time() - start_time
     print(f"\n Collection complete! ({elapsed_time:.1f} seconds)")
-    print(f"Report saved: {saved_path}")
+    print(f" Report saved: {saved_path}")
 
 if __name__ == "__main__":
     main()
