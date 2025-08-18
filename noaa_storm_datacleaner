@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+import pandas as pd
+import csv
+import re
+
+input_file = '150_miami_dade_all.csv'
+
+def parse_csv_line(line):
+    """Parse a CSV line handling quotes properly"""
+    try:
+        reader = csv.reader([line])
+        return next(reader)
+    except:
+        return line.split(',')
+
+def is_header_or_info(line):
+    """Check if line is header or informational content"""
+    skip_patterns = [
+        'Historical Hurricane Tracks', 'STORM NAME', 'DATE RANGE', 'Location:', 
+        'Categories:', 'Months:', 'Years:', 'ENSO', 'Pressure', 'Buffer', 
+        'https://', 'SWITCH TO MAP', 'HURRICANE', 'TROPICAL STORM'
+    ]
+    return any(pattern in line for pattern in skip_patterns) or line.count(',') < 4 or line.strip() == ''
+
+def smart_date_merge(date_start, date_end):
+    """Intelligently merge split date ranges"""
+    date_start = date_start.strip()
+    date_end = date_end.strip()
+    
+    print(f"Debug: Merging '{date_start}' + '{date_end}'")
+    
+    # Pattern 1: "Oct 04, 2024 to Oct" + "11, 2024" -> "Oct 04, 2024 to Oct 11, 2024"
+    month_end_pattern = r'to\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)$'
+    month_match = re.search(month_end_pattern, date_start)
+    
+    if month_match:
+        month = month_match.group(1)
+        day_match = re.search(r'^(\d{1,2})', date_end)
+        year_match = re.search(r'(\d{4})', date_end)
+        if day_match and year_match:
+            result = f"{date_start} {day_match.group(1)}, {year_match.group(1)}"
+            print(f"Debug: Pattern 1 result: '{result}'")
+            return result
+    
+    # Pattern 2: Contains "to" - simple concatenation
+    if 'to' in date_start:
+        result = f"{date_start} {date_end}"
+        print(f"Debug: Pattern 2 result: '{result}'")
+        return result
+    
+    # Pattern 3: No "to" in start
+    result = f"{date_start} to {date_end}"
+    print(f"Debug: Pattern 3 result: '{result}'")
+    return result
+
+def clean_and_extract_data(lines):
+    """Extract storm data from the complex CSV structure"""
+    storms = []
+    i = 0
+    processed_count = 0
+    
+    while i < len(lines):
+        line = lines[i].strip()
+        
+        # Skip header/info lines
+        if is_header_or_info(line):
+            i += 1
+            continue
+        
+        # Look for date start pattern: lines starting with comma and containing date info
+        if (line.startswith(',') and 
+            ('to' in line or any(month in line for month in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']))):
+            
+            # Parse the CSV line properly
+            line_parts = parse_csv_line(line)
+            if len(line_parts) > 1:
+                date_start_part = line_parts[1].strip()
+                
+                # Look ahead for the storm data line
+                if i + 1 < len(lines):
+                    storm_line = lines[i + 1].strip()
+                    storm_parts = parse_csv_line(storm_line)
+                    
+                    if len(storm_parts) >= 5:
+                        storm_name = storm_parts[0].strip()
+                        
+                        # Skip if this doesn't look like a real storm name
+                        if (storm_name == '' or 
+                            any(skip_word in storm_name.lower() for skip_word in ['http', 'location', 'categories', 'months', 'years', 'switch'])):
+                            i += 1
+                            continue
+                        
+                        try:
+                            max_wind = int(storm_parts[2].strip()) if storm_parts[2].strip() else 0
+                            min_pressure = int(storm_parts[3].strip()) if storm_parts[3].strip() else 0
+                            category = storm_parts[4].strip()
+                            
+                            # Look ahead for the date end part
+                            date_end_part = ""
+                            if i + 2 < len(lines):
+                                potential_end_line = lines[i + 2].strip()
+                                if potential_end_line.startswith(','):
+                                    end_parts = parse_csv_line(potential_end_line)
+                                    if len(end_parts) > 1:
+                                        date_end_part = end_parts[1].strip()
+                            
+                            # Construct the full date range using smart merging
+                            if date_end_part:
+                                full_date_range = smart_date_merge(date_start_part, date_end_part)
+                            else:
+                                full_date_range = date_start_part
+                            
+                            # Clean up any double spaces
+                            full_date_range = ' '.join(full_date_range.split())
+                            
+                            storms.append({
+                                "STORM NAME": storm_name,
+                                "DATE RANGE": full_date_range,
+                                "MAX WIND SPEED": max_wind,
+                                "MIN PRESSURE": min_pressure,
+                                "CATEGORY": category
+                            })
+                            
+                            processed_count += 1
+                            if processed_count <= 5:  # Show first 5 for debugging
+                                print(f"Processed {processed_count}: {storm_name} - {full_date_range}")
+                            
+                            # Skip the processed lines
+                            i += 3
+                            continue
+                            
+                        except (ValueError, IndexError) as e:
+                            print(f"Skipping entry due to parsing error: {e}")
+                            pass
+        
+        i += 1
+    
+    return storms
+
+def main():
+    """Main processing function"""
+    print(f"Processing {input_file}...")
+    
+    with open(input_file, 'r', encoding='utf-8') as f:
+        input_lines = [line.rstrip() for line in f if line.strip()]
+    
+    print(f"Read {len(input_lines)} lines from input file")
+    
+    # Extract storm data
+    storms = clean_and_extract_data(input_lines)
+    
+    print(f"\nExtracted {len(storms)} storms")
+    
+    # Create DataFrame
+    df = pd.DataFrame(storms)
+    
+    # Display results
+    print("\nFirst 10 storms:")
+    for i in range(min(10, len(df))):
+        storm = df.iloc[i]
+        print(f"{i+1}. {storm['STORM NAME']}: {storm['DATE RANGE']} ({storm['MAX WIND SPEED']} mph)")
+    
+    # Check for incomplete date ranges
+    print(f"\nChecking for incomplete date ranges:")
+    incomplete_storms = []
+    for i, storm in df.iterrows():
+        date_range = storm['DATE RANGE']
+        # Look for patterns that suggest incomplete dates
+        if (re.search(r'\bto\s+\d{1,2}\s*$', date_range) or  # "to 11"
+            re.search(r'\b\d{1,2}\s*$', date_range) or       # ends with just digits
+            len(date_range.split()) < 4):                     # too short
+            incomplete_storms.append(f"{storm['STORM NAME']}: {date_range}")
+    
+    if len(incomplete_storms) == 0:
+        print(" All date ranges appear complete!")
+    else:
+        print(f" Found {len(incomplete_storms)} potentially incomplete date ranges:")
+        for incomplete in incomplete_storms[:10]:  # Show first 10
+            print(f"  {incomplete}")
+        if len(incomplete_storms) > 10:
+            print(f"  ... and {len(incomplete_storms) - 10} more")
+    
+    # Show some specific high-profile storms
+    print(f"\nHigh-profile storm examples:")
+    famous_storms = ['MILTON', 'IRMA', 'ANDREW', 'KATRINA', 'NICOLE', 'IAN']
+    for storm_name in famous_storms:
+        storm = df[df['STORM NAME'].str.contains(storm_name, na=False)]
+        if not storm.empty:
+            s = storm.iloc[0]
+            print(f"  {s['STORM NAME']}: \"{s['DATE RANGE']}\"")
+        else:
+            print(f"  {storm_name}: Not found")
+    
+    # Save to CSV
+    output_file = '150_miami_dade_all_cleaned_FINAL.csv'
+    df.to_csv(output_file, index=False)
+    print(f"\n Saved {len(df)} storms to {output_file}")
+    
+    # Final summary
+    print(f"\nSUMMARY:")
+    print(f"  Input file: {input_file}")
+    print(f"  Output file: {output_file}")
+    print(f"  Storms extracted: {len(df)}")
+    print(f"  Complete date ranges: {len(df) - len(incomplete_storms)}")
+    print(f"  Incomplete date ranges: {len(incomplete_storms)}")
+    
+    return df
+
+if __name__ == "__main__":
+    df = main()
