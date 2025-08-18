@@ -1,0 +1,17 @@
+import camelot
+import pandas as pd
+
+pdf_path = "150_miami_dade.pdf"
+output_csv = "150_miami_dade_camelot.csv"
+
+tables = camelot.read_pdf(pdf_path, pages="all", flavor="stream")
+print(f"Found {tables.n} tables")
+
+if tables.n > 0:
+    tables[0].to_csv(output_csv)
+    print(f"Saved first table to {output_csv}")
+
+    all_dfs = [t.df for t in tables]
+    merged = pd.concat(all_dfs, ignore_index=True)
+    merged.to_csv("150_miami_dade_all.csv", index=False)
+    print("Saved merged tables to 150_miami_dade_all.csv")
